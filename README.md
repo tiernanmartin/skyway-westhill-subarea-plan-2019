@@ -10,3 +10,7 @@ More information about the plan, the planning process, and the
 communities that live in this area can be found on King County’s subarea
 plan website: [Skyway-West Hill Subarea
 Plan](https://www.kingcounty.gov/depts/local-services/permits/planning-regulations/community-service-area-land-use-subarea-plans/skyway-west-hill.aspx)
+
+## Content
+
+![](outputs/renters-by-AMI.png)
