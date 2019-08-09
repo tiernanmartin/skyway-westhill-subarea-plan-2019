@@ -123,11 +123,11 @@ ex4_pct <-
   )) %>% 
   spread(ROLE, COUNT) %>% 
   mutate_at(vars(ends_with("TOTAL")), mode) %>% 
-mutate(PERCENT = case_when(
-  TENURE == "ALL" ~ COUNT/ALL_TOTAL,
-  TENURE == "RENT" ~ COUNT/RENT_TOTAL,
-  TENURE == "OWN" ~ COUNT/OWN_TOTAL
-)) %>% 
+  mutate(PERCENT = case_when(
+    TENURE == "ALL" ~ COUNT/ALL_TOTAL,
+    TENURE == "RENT" ~ COUNT/RENT_TOTAL,
+    TENURE == "OWN" ~ COUNT/OWN_TOTAL
+  )) %>% 
   mutate(PERCENT_LABEL = scales::percent(PERCENT,accuracy = 1)) %>% 
   filter(! HOUSEHOLD_INCOME == "ALL")  
 
@@ -216,3 +216,128 @@ gg <- gg +labs(x = "", y = "",
 gg
 
 ggsave("outputs/exhibit-4.png", width = 8, height = 4, units = "in", device = "png")
+
+
+# CREATE THE DATA FOR EXHIBIT 5 -------------------------------------------
+
+# create the tenure by income level data
+
+ex5_own_rent <-
+  tr_long %>%  
+  filter(LINE_TYPE %in% c("SUBTOTAL")) %>% 
+  filter(! HOUSEHOLD_INCOME == "ALL") %>% 
+  filter(FACILITIES %in% "ALL") %>%   
+  group_by(TENURE, COST_BURDEN) %>% 
+  summarise(COUNT = sum(VALUE))
+
+ex5_own_rent_all <-
+  ex5_own_rent %>%  
+  group_by(COST_BURDEN) %>% 
+  summarise(COUNT = sum(COUNT)) %>% 
+  mutate(TENURE = "ALL") %>% 
+  bind_rows(ex5_own_rent)
+
+# calculate the percentage of each subtotal (for labeling the plot)
+
+ex5_pct <-
+ex5_own_rent_all %>% 
+  mutate(ROLE = case_when(
+    COST_BURDEN == "ALL" ~ str_c(TENURE,"_TOTAL"),
+    TRUE ~ "COUNT"
+  )) %>% 
+  spread(ROLE, COUNT) %>% 
+  mutate_at(vars(ends_with("TOTAL")), mode) %>% 
+  mutate(PERCENT = case_when(
+    TENURE == "ALL" ~ COUNT/ALL_TOTAL,
+    TENURE == "RENT" ~ COUNT/RENT_TOTAL,
+    TENURE == "OWN" ~ COUNT/OWN_TOTAL
+  )) %>% 
+  mutate(PERCENT_LABEL = scales::percent(PERCENT,accuracy = 1)) %>% 
+  filter(! COST_BURDEN == "ALL")  
+
+# set the factor levels (important for intuitive ordering of plot elements)
+
+lvls <- list(
+  tenure = c("All Households", "Renter",  "Owner"),
+  cost_burden = c("Severly Cost-Burdened",
+             "Cost-Burdened",
+             "Not Cost-Burdened",
+             "Not Calculated")
+)
+
+ex5_ready <-
+  ex5_pct %>% 
+  mutate(TENURE = case_when(
+    TENURE == "ALL" ~ "All Households",
+    TENURE == "RENT" ~ "Renter", 
+    TENURE == "OWN" ~ "Owner",
+    TRUE ~ NA_character_
+  )) %>% 
+  mutate(
+    COST_BURDEN = case_when(
+      COST_BURDEN == "GREATER_THAN_50" ~ "Severly Cost-Burdened",
+      str_detect(COST_BURDEN, "GREATER_THAN_30") ~ "Cost-Burdened",
+      str_detect(COST_BURDEN, "LESS") ~ "Not Cost-Burdened",
+      str_detect(COST_BURDEN, "NOT") ~ "Not Calculated",
+      TRUE ~ NA_character_
+    ) 
+  ) %>% 
+  mutate(TENURE = factor(TENURE, levels = lvls[["tenure"]], ordered = TRUE),
+         COST_BURDEN = factor(COST_BURDEN, levels = lvls[["cost_burden"]], ordered = TRUE)
+  )
+
+
+# CREATE EXHIBIT 5 PLOT ---------------------------------------------------
+
+# color palette
+
+pal <- c(RColorBrewer::brewer.pal(11,"BrBG")[c(9,8)],
+         RColorBrewer::brewer.pal(11,"RdGy")[c(8,7)]) %>% 
+  set_names(lvls[["cost_burden"]])
+
+gg <- ggplot(data = ex5_ready,
+             aes(x = fct_rev(TENURE), y = COUNT, fill = fct_rev(COST_BURDEN)))
+
+gg <- gg + geom_bar(stat = "identity", position = "fill",width = .5)
+
+gg <- gg + geom_text(aes(x = fct_rev(TENURE), 
+                         y = PERCENT,  
+                         label = PERCENT_LABEL,
+                         hjust = .5),  
+                     position = position_fill(vjust = 0.5),
+                     size = rel(3))
+
+gg <- gg + geom_hline(yintercept = -.005, size = .25, color="gray")
+
+gg <- gg + scale_fill_manual(values = pal)
+
+gg <- gg + scale_y_continuous(breaks = seq(0,20000, by = 2500),labels = scales::comma) 
+
+gg <- gg + coord_flip() 
+
+gg <- gg + guides(fill = guide_legend(reverse = T))
+
+gg <- gg + theme_minimal() +
+  theme( 
+    legend.position = "right",
+    legend.box = "horizontal",
+    legend.title = element_blank(), 
+    legend.text = element_text(size = rel(0.75)),
+    legend.key.size = unit(10, "points"),
+    axis.line.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.x = element_blank(), 
+    axis.line.y = element_blank(), 
+    panel.grid = element_blank(),  
+    plot.margin = margin(4,4,4,4,unit = "mm"),
+    plot.caption = element_text(hjust = 0) 
+  )
+gg <- gg +labs(x = "", y = "",
+               title = "Housing Tenure by Housing Cost-Burden Level",
+               subtitle = "Occupied housing units in Skyway and Bryn Mawr census tracts\n(Tracts 261 and 260.01)",
+               caption = "Source: HUD CHAS (based on ACS 2011-2015 5-year estimates); Futurewise, 2019")
+
+gg
+
+ggsave("outputs/exhibit-5.png", width = 8, height = 4, units = "in", device = "png")
+
