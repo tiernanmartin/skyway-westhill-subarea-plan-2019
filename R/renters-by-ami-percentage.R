@@ -117,9 +117,6 @@ tr_long %>%
          NONE = 3)
 
 
-ggplot(data = tr_ready,
-       aes(x = NONE, y = COUNT, fill = COLNAME_DESC_LABEL)) +
-  geom_bar(stat = "identity", position = "stack",width = .05)
 
 
 tr_by_afford70ami <-
