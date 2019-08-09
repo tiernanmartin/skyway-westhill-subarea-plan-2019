@@ -127,7 +127,7 @@ tr_ready %>%
             PERCENT = sum(PERCENT),
             NONE = first(NONE))
 
-pal <- RColorBrewer::brewer.pal(11,"Spectral")[c(11,10,3)] %>% 
+pal <- RColorBrewer::brewer.pal(11,"RdYlBu")[c(10,9,3)] %>% 
   set_names(c("can afford","can afford (maybe)","can not afford"))
 
 y_can <- tr_by_afford70ami %>% filter(AFFORD_70AMI == "can afford") %>% pull("COUNT")

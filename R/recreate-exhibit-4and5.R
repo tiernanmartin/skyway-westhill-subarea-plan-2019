@@ -183,7 +183,7 @@ gg <- gg + geom_text(aes(x = fct_rev(TENURE),
                      position = position_fill(vjust = 0.5),
                      size = rel(3))
 
-gg <- gg + geom_hline(yintercept = -.005, size = .5, color="gray")
+gg <- gg + geom_hline(yintercept = -.005, size = .25, color="gray")
 
 gg <- gg + scale_fill_manual(values = pal)
 
