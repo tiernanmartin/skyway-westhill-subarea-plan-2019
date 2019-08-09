@@ -14,3 +14,5 @@ Plan](https://www.kingcounty.gov/depts/local-services/permits/planning-regulatio
 ## Content
 
 ![](outputs/renters-by-AMI.png)
+
+![](outputs/exhibit-4.png)

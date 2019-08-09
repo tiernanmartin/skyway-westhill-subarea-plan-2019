@@ -17,3 +17,5 @@ More information about the plan, the planning process, and the communities that 
 ## Content
 
 ![](outputs/renters-by-AMI.png){width=66%}
+
+![](outputs/exhibit-4.png){width=66%}
