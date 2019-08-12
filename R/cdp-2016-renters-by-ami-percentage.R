@@ -10,19 +10,16 @@ g <- glimpse
 
 # LOAD DATA ---------------------------------------------------------------
 
-tract_data_filepath <- "data/source-files/2011thru2015-140-csv.zip"
-
-county_data_filepath <- "data/source-files/2011thru2015-050-csv.zip"
+tract_data_filepath <- "data/source-files/2012thru2016-160-csv.zip" 
 
 
 # Unzip
 
-unzip(tract_data_filepath, exdir = "data/source-files")
-unzip(county_data_filepath, exdir = "data/source-files")
+unzip(tract_data_filepath, exdir = "data/source-files/cdp/2012-2016") 
 
 
 data_dictionary <- 
-  readxl::read_excel("data/source-files/140/CHAS data dictionary 11-15.xlsx", 
+  readxl::read_excel("data/source-files/cdp/2012-2016/2012thru2016-160-csv/160/CHAS data dictionary 12-16.xlsx", 
                      sheet = "Table 8") %>% 
   janitor::clean_names("screaming_snake") %>% 
   mutate_all(to_screaming_snake_case) %>% 
@@ -30,15 +27,11 @@ data_dictionary <-
   mutate(COLUMN_NAME = str_replace(COLUMN_NAME,"T_8","T8"),
          COLUMN_NAME = str_replace(COLUMN_NAME,"EST_","EST"))
 
-tr <- 
-  read_csv("data/source-files/140/Table8.csv") %>% 
+cdp <- 
+  read_csv("data/source-files/cdp/2012-2016/2012thru2016-160-csv/160/Table8.csv") %>% 
   janitor::clean_names("screaming_snake") %>%
   dplyr::mutate_at(dplyr::vars(-dplyr::matches("T8")),as.character)
 
-cnty <- 
-  read_csv("data/source-files/050/Table8.csv") %>% 
-  janitor::clean_names("screaming_snake") %>%
-  dplyr::mutate_at(dplyr::vars(-dplyr::matches("T8")),as.character)
 
 # PREPARE DATA ------------------------------------------------------------
 
@@ -67,19 +60,20 @@ dd_join <-
   )) %>% 
   mutate(COLNAME_DESC = str_c(LINE_TYPE,TENURE, HOUSEHOLD_INCOME, sep = "_")) 
 
-skyway_tracts <- c("026100", "026001")
+ 
+skyway_cdp <- c("Bryn Mawr-Skyway CDP, Washington")
 
-tr_skyway <-
-  tr %>% 
-  filter(TRACT %in% skyway_tracts)
+cdp_skyway <-
+  cdp %>%  
+  filter(NAME %in% skyway_cdp)
 
-tr_long <-
-  tr_skyway %>% 
+cdp_long <-
+  cdp_skyway %>% 
   gather(COLUMN_NAME, VALUE, starts_with("T8")) %>% 
   left_join(dd_join, by = "COLUMN_NAME") 
 
-tr_ready <- 
-tr_long %>% 
+cdp_ready <- 
+cdp_long %>% 
   filter(TENURE %in% "RENT") %>% 
   filter(LINE_TYPE %in% c("SUBTOTAL")) %>% 
   filter(COST_BURDEN %in% "ALL") %>% 
@@ -119,8 +113,8 @@ tr_long %>%
 
 
 
-tr_by_afford70ami <-
-tr_ready %>% 
+cdp_by_afford70ami <-
+cdp_ready %>% 
   group_by(AFFORD_70AMI) %>% 
   summarize(COUNT = sum(COUNT),
             TOTAL = first(TOTAL),
@@ -130,32 +124,35 @@ tr_ready %>%
 pal <- RColorBrewer::brewer.pal(11,"RdYlBu")[c(10,9,3)] %>% 
   set_names(c("can afford","can afford (maybe)","can not afford"))
 
-y_can <- tr_by_afford70ami %>% filter(AFFORD_70AMI == "can afford") %>% pull("COUNT")
+y_can <- cdp_by_afford70ami %>% filter(AFFORD_70AMI == "can afford") %>% pull("COUNT")
 
-y_maybe <- tr_by_afford70ami %>% filter(AFFORD_70AMI == "can afford (maybe)") %>% pull("COUNT")
+y_maybe <- cdp_by_afford70ami %>% filter(AFFORD_70AMI == "can afford (maybe)") %>% pull("COUNT")
 
-y_cant <- tr_by_afford70ami %>% filter(AFFORD_70AMI == "can not afford") %>% pull("COUNT")
+y_cant <- cdp_by_afford70ami %>% filter(AFFORD_70AMI == "can not afford") %>% pull("COUNT")
 
 
 # CREATE PLOT -------------------------------------------------------------
 
-ggplot(data = tr_by_afford70ami,
+
+
+
+ggplot(data = cdp_by_afford70ami,
        aes(x = NONE, y = COUNT, fill = AFFORD_70AMI)) +
   scale_x_continuous(limits = c(1,5)) +
-  scale_y_continuous(breaks = seq(0,20000, by = 2500),labels = scales::comma) +
+  scale_y_continuous(breaks = seq(0,3000, by = 500),labels = scales::comma) +
   scale_fill_manual(values = pal) + 
   geom_bar(stat = "identity", position = "stack",width = .25) +
   geom_hline(yintercept = sum(y_maybe, y_cant), size = .5, linetype="dashed") +
   geom_hline(yintercept = y_cant, size = .5, linetype="dashed") +
   geom_hline(yintercept = 0, size = .5, color="gray") +
   annotate("text",x = 2, y = sum(y_cant,y_maybe, y_can/2),
-           label = 'atop(atop("", bold("income is 80% AMI or more")), atop("2,999 households", "(22.8% of renters)"))',
+           label = 'atop(atop("", bold("income is 80% AMI or more")), atop("825 households (32% of renters)"))',
            parse = TRUE, colour = pal["can afford"]) +
   annotate("text",x = 2, y = sum(y_cant,y_maybe/2),
-           label = 'atop(atop("", bold("income is between 50-80% AMI")), atop("2,405 households", "(18.3% of renters)"))', 
+           label = 'atop(atop("", bold("income is between 50-80% AMI")), atop("360 households (14% of renters)"))', 
            parse = TRUE, colour = pal["can afford (maybe)"]) +
   annotate("text",x = 2, y = y_cant/2,
-           label = 'atop(atop("", bold("income is between 0-50% AMI")), atop("7,765 households", "(59% of renters)"))', 
+           label = 'atop(atop("", bold("income is between 0-50% AMI")), atop("1,435 households (55% of renters)"))', 
            parse = TRUE, colour = pal["can not afford"]) +
   annotate("text", x = 4, y = sum(y_cant,y_maybe, y_can/2), 
            label = "can afford\nthe 70% AMI rent threshold") + 
@@ -171,20 +168,22 @@ ggplot(data = tr_by_afford70ami,
         axis.line.y = element_line(colour = "gray",size = .5), 
         axis.ticks.y = element_line(colour = "gray",size = .25),
         axis.text.y = element_text(color = "darkgray"),
-        panel.grid.major.x = element_blank(), 
-        panel.grid.minor.x = element_blank(), 
-        panel.grid.minor.y = element_blank(),
+        panel.grid = element_blank(),  
         plot.margin = margin(4,4,4,4,unit = "mm"),
         plot.caption = element_text(hjust = 0)
           
         ) +
   labs(x = "", y = "",
        title = "Most Renters Can't Afford a 70% AMI Rent",
-       subtitle = "Data: Renter households in the Skyway and Bryn Mawr census tracts",
-       caption = "Data Source: 2011-2015 CHAS Data; includes Tracts 261 and 260.01 only\n \n* The CHAS data groups households earning 50-80% AMI, so while some members of this\ngroup may be able to afford 70% AMI rent, we assume that most renters in this income\ngroup can not.")
+       subtitle = "Renter-occupied housing units in Skyway and Bryn Mawr census tracts\n(Tracts 261 and 260.01)", 
+       caption = "Source: HUD CHAS (based on ACS 2012-2016 5-year estimates); Futurewise, 2019\n \nNote: this data is slightly more recent than the data included in the Equity Impact Analysis\n \n* The CHAS data combines households earning 50-80% AMI, so while some members of this group\n   may be able to afford 70% AMI rent, we assume that most renters in this income group can not.")
 
 
 # SAVE PLOT TO FILE -------------------------------------------------------
 
-ggsave("outputs/renters-by-AMI.png", width = 6.35, height = 5.55, units = "in", device = "png")
+ggsave("outputs/cdp-2012to2016-renters-by-AMI.png", 
+       height = 7.29, 
+       width = 6.43,
+       units = "in", 
+       device = "png")
 

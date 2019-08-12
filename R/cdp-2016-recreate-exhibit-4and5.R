@@ -4,24 +4,21 @@ library(tidyverse)
 library(readxl)
 library(janitor)
 library(snakecase)
+library(ggrepel)
 
 g <- glimpse
 
 # LOAD DATA ---------------------------------------------------------------
 
-tract_data_filepath <- "data/source-files/2011thru2015-140-csv.zip"
-
-county_data_filepath <- "data/source-files/2011thru2015-050-csv.zip"
+cdp_data_filepath <- "data/source-files/2012thru2016-160-csv.zip" 
 
 
 # Unzip
 
-unzip(tract_data_filepath, exdir = "data/source-files")
-unzip(county_data_filepath, exdir = "data/source-files")
-
+unzip(cdp_data_filepath, exdir = "data/source-files/cdp/2012-2016")
 
 data_dictionary <- 
-  readxl::read_excel("data/source-files/140/CHAS data dictionary 11-15.xlsx", 
+  readxl::read_excel("data/source-files/cdp/2012-2016/2012thru2016-160-csv/160/CHAS data dictionary 12-16.xlsx", 
                      sheet = "Table 8") %>% 
   janitor::clean_names("screaming_snake") %>% 
   mutate_all(to_screaming_snake_case) %>% 
@@ -29,22 +26,16 @@ data_dictionary <-
   mutate(COLUMN_NAME = str_replace(COLUMN_NAME,"T_8","T8"),
          COLUMN_NAME = str_replace(COLUMN_NAME,"EST_","EST"))
 
-tr <- 
-  read_csv("data/source-files/140/Table8.csv") %>% 
+cdp <- 
+  read_csv("data/source-files/cdp/2012-2016/2012thru2016-160-csv/160/Table8.csv") %>% 
   janitor::clean_names("screaming_snake") %>%
   dplyr::mutate_at(dplyr::vars(-dplyr::matches("T8")),as.character)
-
-cnty <- 
-  read_csv("data/source-files/050/Table8.csv") %>% 
-  janitor::clean_names("screaming_snake") %>%
-  dplyr::mutate_at(dplyr::vars(-dplyr::matches("T8")),as.character)
-
 
 
 # recode the columns to make it easier to work with them
 
-# dd_join <-
-data_dictionary %>%  
+dd_join <-
+  data_dictionary %>%  
   mutate(TENURE = case_when(
     TENURE == "OWNER_OCCUPIED" ~ "OWN",
     TENURE == "RENTER_OCCUPIED" ~ "RENT",
@@ -75,18 +66,17 @@ data_dictionary %>%
   )) %>%  
   mutate(COLNAME_DESC = str_c(LINE_TYPE,TENURE, HOUSEHOLD_INCOME, sep = "_")) 
 
-skyway_tracts <- c("026100", "026001")
+skyway_cdp <- c("Bryn Mawr-Skyway CDP, Washington")
 
-tr_skyway <-
-  tr %>% 
-  filter(TRACT %in% skyway_tracts)
+cdp_skyway <-
+  cdp %>% 
+  filter(NAME %in% skyway_cdp)
 
-tr_long <-
-  tr_skyway %>% 
+cdp_long <-
+  cdp_skyway %>% 
   gather(COLUMN_NAME, VALUE, starts_with("T8")) %>% 
   left_join(dd_join, by = "COLUMN_NAME") %>% 
-  select(NAME,
-         TRACT,
+  select(NAME, 
          COLUMN_NAME:COLNAME_DESC)
 
 
@@ -115,7 +105,7 @@ mode <- function(x) {
   ux[which.max(tabulate(match(x, ux)))]
 }
 
-ex4_pct <- 
+ex4_pct <-
   ex4_own_rent_all %>% 
   mutate(ROLE = case_when(
     HOUSEHOLD_INCOME == "ALL" ~ str_c(TENURE,"_TOTAL"),
@@ -129,7 +119,7 @@ ex4_pct <-
     TENURE == "OWN" ~ COUNT/OWN_TOTAL
   )) %>% 
   mutate(PERCENT_LABEL = scales::percent(PERCENT,accuracy = 1)) %>% 
-  filter(! HOUSEHOLD_INCOME == "ALL")  
+  filter(! HOUSEHOLD_INCOME == "ALL") 
 
 # set the factor levels (important for intuitive ordering of plot elements)
 
@@ -210,12 +200,12 @@ gg <- gg + theme_minimal() +
   )
 gg <- gg +labs(x = "", y = "",
                title = "Housing Tenure by Household Income Level (AMFI%)",
-               subtitle = "Occupied housing units in Skyway and Bryn Mawr census tracts\n(Tracts 261 and 260.01)",
-               caption = "Source: HUD CHAS (based on ACS 2011-2015 5-year estimates); Futurewise, 2019")
+               subtitle = "Occupied housing units in Bryn Mawr-Skyway CDP",
+               caption = "Source: HUD CHAS (based on ACS 2012-2016 5-year estimates); Futurewise, 2019\n \nNote: this data is slightly more recent than the data included in the Equity Impact\nAnalysis")
 
 gg
 
-ggsave("outputs/exhibit-4.png", width = 8, height = 4, units = "in", device = "png")
+ggsave("outputs/cdp-2012to2016-exhibit-4.png", width = 8, height = 4, units = "in", device = "png")
 
 
 # CREATE THE DATA FOR EXHIBIT 5 -------------------------------------------
@@ -240,7 +230,7 @@ ex5_own_rent_all <-
 # calculate the percentage of each subtotal (for labeling the plot)
 
 ex5_pct <-
-ex5_own_rent_all %>% 
+  ex5_own_rent_all %>% 
   mutate(ROLE = case_when(
     COST_BURDEN == "ALL" ~ str_c(TENURE,"_TOTAL"),
     TRUE ~ "COUNT"
@@ -260,9 +250,9 @@ ex5_own_rent_all %>%
 lvls <- list(
   tenure = c("All Households", "Renter",  "Owner"),
   cost_burden = c("Severly Cost-Burdened",
-             "Cost-Burdened",
-             "Not Cost-Burdened",
-             "Not Calculated")
+                  "Cost-Burdened",
+                  "Not Cost-Burdened",
+                  "Not Calculated")
 )
 
 ex5_ready <-
@@ -275,10 +265,10 @@ ex5_ready <-
   )) %>% 
   mutate(
     COST_BURDEN = case_when(
-      COST_BURDEN == "GREATER_THAN_50" ~ "Severly Cost-Burdened",
-      str_detect(COST_BURDEN, "GREATER_THAN_30") ~ "Cost-Burdened",
-      str_detect(COST_BURDEN, "LESS") ~ "Not Cost-Burdened",
-      str_detect(COST_BURDEN, "NOT") ~ "Not Calculated",
+      COST_BURDEN == "GT50" ~ "Severly Cost-Burdened",
+      str_detect(COST_BURDEN, "GT30_LTEQ50") ~ "Cost-Burdened",
+      str_detect(COST_BURDEN, "LTEQ30") ~ "Not Cost-Burdened",
+      str_detect(COST_BURDEN, "NC") ~ "Not Calculated",
       TRUE ~ NA_character_
     ) 
   ) %>% 
@@ -300,11 +290,15 @@ gg <- ggplot(data = ex5_ready,
 
 gg <- gg + geom_bar(stat = "identity", position = "fill",width = .5)
 
-gg <- gg + geom_text(aes(x = fct_rev(TENURE), 
-                         y = PERCENT,  
+
+hjust <- if_else(str_detect(as.character(ex5_ready$COST_BURDEN),"Calc"),
+                 0,0.5)
+
+gg <- gg + geom_text(aes(x = fct_rev(TENURE),
+                         y = PERCENT,
                          label = PERCENT_LABEL,
-                         hjust = .5),  
-                     position = position_fill(vjust = 0.5),
+                         hjust = hjust),
+                     position = position_fill(vjust = .5),
                      size = rel(3))
 
 gg <- gg + geom_hline(yintercept = -.005, size = .25, color="gray")
@@ -328,16 +322,16 @@ gg <- gg + theme_minimal() +
     axis.ticks.x = element_blank(),
     axis.text.x = element_blank(), 
     axis.line.y = element_blank(), 
-    panel.grid = element_blank(),  
+    panel.grid = element_blank(), 
     plot.margin = margin(4,4,4,4,unit = "mm"),
     plot.caption = element_text(hjust = 0) 
   )
 gg <- gg +labs(x = "", y = "",
                title = "Housing Tenure by Housing Cost-Burden Level",
-               subtitle = "Occupied housing units in Skyway and Bryn Mawr census tracts\n(Tracts 261 and 260.01)",
-               caption = "Source: HUD CHAS (based on ACS 2011-2015 5-year estimates); Futurewise, 2019")
+               subtitle = "Occupied housing units in Bryn Mawr-Skyway CDP",
+               caption = "Source: HUD CHAS (based on ACS 2012-2016 5-year estimates); Futurewise, 2019\n \nNote: this data is slightly more recent than the data included in the Equity Impact\nAnalysis")
 
 gg
 
-ggsave("outputs/exhibit-5.png", width = 8, height = 4, units = "in", device = "png")
+ggsave("outputs/cdp-2012to2016-exhibit-5.png", width = 8, height = 4, units = "in", device = "png")
 
