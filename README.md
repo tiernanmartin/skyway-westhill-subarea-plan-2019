@@ -13,19 +13,21 @@ Plan](https://www.kingcounty.gov/depts/local-services/permits/planning-regulatio
 
 ## Content
 
-![](outputs/renters-by-AMI.png)
+![](outputs/cdp-2012to2016-renters-by-AMI.png)
 
 The following two graphics are based on Exhbits 4 and 5 in the
 Skyway-West Hill Subarea Plan Equity Impact Analysis (p.7). These graphs
 show slightly different results from those included in the draft
-document and the source of this disparity is unclear. The original
-graphs were created by a third party consultant (BERK Consulting) who
-prepared the Equity Impact Analysis on behalf of King County.
+document because they use the most recent CHAS data (2012-2016), which
+were not yet availabe when the original graphs were produced. The
+original graphs were created by a third party consultant (BERK
+Consulting) who prepared the Equity Impact Analysis on behalf of King
+County.
 
 ### Exhibit 4 (Futurewise Version)
 
-![](outputs/exhibit-4.png)
+![](outputs/cdp-2012to2016-exhibit-4.png)
 
 ### Exhibit 5 (Futurewise Version)
 
-![](outputs/exhibit-5.png)
+![](outputs/cdp-2012to2016-exhibit-5.png)
